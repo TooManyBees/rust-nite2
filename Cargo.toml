@@ -1,0 +1,8 @@
+[package]
+name = "nite2"
+version = "0.1.0"
+authors = ["Jesse Bees <jesse@toomanybees.com>"]
+
+[dependencies]
+nite2-sys = { path = "../nite2-sys" }
+openni2 = { path = "../openni2" }
