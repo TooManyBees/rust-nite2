@@ -9,7 +9,6 @@ fn main() -> Result<(), Status> {
     openni2::init()?;
     nite2::init()?;
 
-    // let d = Device::open_default().unwrap();
     let u = UserTracker::open_default()?;
 
     let f = u.read_frame()?;

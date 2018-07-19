@@ -2,10 +2,10 @@ use std::fmt;
 use nite2_sys::*;
 use openni2::Status as OpenNI2Status;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum Status {
     Ok,
-    Error,
+    Error(String),
     BadUserId,
     OutOfFlow,
 }
@@ -14,10 +14,10 @@ impl Status {
     fn from_int(value: NiteStatus) -> Self {
         match value {
             NITE_STATUS_OK => Status::Ok,
-            NITE_STATUS_ERROR => Status::Error,
+            NITE_STATUS_ERROR => Status::Error(String::from("Generic NiTE error")),
             NITE_STATUS_BAD_USER_ID => Status::BadUserId,
             NITE_STATUS_OUT_OF_FLOW => Status::OutOfFlow,
-            _ => Status::Error,
+            _ => panic!("Unknown NiTE status {}", value),
         }
     }
 }
@@ -26,7 +26,7 @@ impl fmt::Display for Status {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let error_string = match self {
             Status::Ok => "Ok",
-            Status::Error => "Error",
+            Status::Error(s) => &s,
             Status::BadUserId => "Bad user id",
             Status::OutOfFlow => "Out of flow",
         };
@@ -44,9 +44,19 @@ impl From<Status> for OpenNI2Status {
     fn from(status: Status) -> OpenNI2Status {
         match status {
             Status::Ok => OpenNI2Status::Ok,
-            Status::Error => OpenNI2Status::Error(String::from("Error from NiTE")),
+            Status::Error(s) => OpenNI2Status::Error(s),
             Status::BadUserId => OpenNI2Status::BadParameter,
             Status::OutOfFlow => OpenNI2Status::OutOfFlow,
+        }
+    }
+}
+
+impl From<OpenNI2Status> for Status {
+    fn from(status: OpenNI2Status) -> Status {
+        match status {
+            OpenNI2Status::Ok => Status::Ok,
+            OpenNI2Status::OutOfFlow => Status::OutOfFlow,
+            e @ _ => Status::Error(format!("OpenNI2 error: {}", e))
         }
     }
 }

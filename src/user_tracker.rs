@@ -50,10 +50,21 @@ impl<'a> UserTracker<'a> {
             niteReadUserTrackerFrame(self.handle, &mut pointer)
         }.into();
         match status {
-            Status::Ok => Ok(frame_from_pointer(pointer)),
+            Status::Ok => Ok(frame_from_pointer(pointer, self.handle)),
             _ => Err(status),
         }
     }
+
+    // niteStartSkeletonTracking
+    // niteStopSkeletonTracking
+    // niteIsSkeletonTracking
+    // niteSetSkeletonSmoothing
+    // niteGetSkeletonSmoothing
+    // niteStartPoseDetection
+    // niteStopPoseDetection
+    // niteStopAllPoseDetection
+    // niteRegisterUserTrackerCallbacks
+    // niteUnregisterUserTrackerCallbacks
 }
 
 impl<'a> Drop for UserTracker<'a> {
@@ -65,13 +76,18 @@ impl<'a> Drop for UserTracker<'a> {
 #[derive(Debug)]
 pub struct UserTrackerFrame<'a> {
     nite_frame: &'a NiteUserTrackerFrame,
+    frame_pointer: *mut NiteUserTrackerFrame,
+    user_tracker_handle: NiteUserTrackerHandle,
 }
 
-fn frame_from_pointer<'a>(ptr: *mut NiteUserTrackerFrame) -> UserTrackerFrame<'a> {
-    assert!(!ptr.is_null(), "Creating UserTrackerFrame: *mut NiteUserTrackerFrame is null");
-    let nite_frame: &NiteUserTrackerFrame = unsafe { &*ptr };
+fn frame_from_pointer<'a>(frame_pointer: *mut NiteUserTrackerFrame, handle: NiteUserTrackerHandle) -> UserTrackerFrame<'a> {
+    assert!(!frame_pointer.is_null(), "Creating UserTrackerFrame: *mut NiteUserTrackerFrame is null");
+    let nite_frame: &NiteUserTrackerFrame = unsafe { &*frame_pointer };
+    unsafe { niteUserTrackerFrameAddRef(handle, frame_pointer) };
     UserTrackerFrame {
-        nite_frame
+        nite_frame,
+        frame_pointer,
+        user_tracker_handle: handle,
     }
 }
 
@@ -119,6 +135,14 @@ impl<'a> UserTrackerFrame<'a> {
 
     pub fn user_count(&self) -> usize {
         self.nite_frame.userCount as usize
+    }
+}
+
+impl<'a> Drop for UserTrackerFrame<'a> {
+    fn drop(&mut self) {
+        unsafe {
+            niteUserTrackerFrameRelease(self.user_tracker_handle, self.frame_pointer)
+        };
     }
 }
 

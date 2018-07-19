@@ -1,8 +1,10 @@
 extern crate nite2_sys;
 extern crate openni2;
 
-use nite2_sys::*;
+mod types;
+mod user_tracker;
 
+use nite2_sys::*;
 pub use nite2_sys::{
     NiteVersion,
     NitePlane,
@@ -12,9 +14,6 @@ pub use nite2_sys::{
     NiteUserId,
 };
 
-mod types;
-mod user_tracker;
-
 pub use types::{
     Status,
     JointType,
@@ -22,7 +21,12 @@ pub use types::{
     PoseType,
     GestureType,
 };
-pub use user_tracker::{UserTracker, UserTrackerFrame};
+
+pub use user_tracker::{
+    UserTracker,
+    UserTrackerFrame,
+    UserMap,
+};
 
 pub fn init() -> Result<(), Status> {
     let status = unsafe { niteInitialize() }.into();
