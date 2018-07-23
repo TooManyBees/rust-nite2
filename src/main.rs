@@ -1,9 +1,7 @@
 extern crate openni2;
 extern crate nite2;
-extern crate nite2_sys;
 
-use openni2::Status;
-use nite2::{UserTracker};
+use nite2::{Status, UserTracker};
 
 fn main() -> Result<(), Status> {
     openni2::init()?;

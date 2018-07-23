@@ -3,7 +3,6 @@ use std::marker::PhantomData;
 use std::{ptr, slice};
 use types::Status;
 use openni2::{
-    Device,
     Frame,
     OniDepthPixel,
     frame_from_pointer as oni_frame_from_pointer,
@@ -20,20 +19,6 @@ impl<'a> UserTracker<'a> {
         let mut handle: NiteUserTrackerHandle = ptr::null_mut();
         let status = unsafe {
             niteInitializeUserTracker(&mut handle)
-        }.into();
-        match status {
-            Status::Ok => Ok(UserTracker {
-                handle,
-                _device_lifetime: PhantomData,
-            }),
-            _ => Err(status),
-        }
-    }
-
-    pub fn open_with_device(device: &'a Device) -> Result<UserTracker<'a>, Status> {
-        let mut handle: NiteUserTrackerHandle = ptr::null_mut();
-        let status = unsafe {
-            niteInitializeUserTrackerByDevice(device.handle(), &mut handle)
         }.into();
         match status {
             Status::Ok => Ok(UserTracker {
