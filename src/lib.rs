@@ -3,6 +3,8 @@ extern crate openni2;
 
 mod types;
 mod user_tracker;
+mod user_tracker_manager;
+mod skeleton;
 
 use nite2_sys::*;
 pub use nite2_sys::{
@@ -27,6 +29,8 @@ pub use user_tracker::{
     UserTrackerFrame,
     UserMap,
 };
+
+pub use user_tracker_manager::UserTrackerManager;
 
 pub fn init() -> Result<(), Status> {
     let status = unsafe { niteInitialize() }.into();

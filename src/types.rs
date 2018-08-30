@@ -2,7 +2,7 @@ use std::fmt;
 use nite2_sys::*;
 use openni2::Status as OpenNI2Status;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Status {
     Ok,
     Error(String),
@@ -61,6 +61,7 @@ impl From<OpenNI2Status> for Status {
     }
 }
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[repr(i32)]
 pub enum JointType {
     Head = NITE_JOINT_HEAD,
@@ -109,6 +110,7 @@ impl From<NiteJointType> for JointType {
     }
 }
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[repr(i32)]
 pub enum SkeletonState {
     None = NITE_SKELETON_NONE,
@@ -143,6 +145,7 @@ impl From<NiteSkeletonState> for SkeletonState {
     }
 }
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[repr(i32)]
 pub enum PoseType {
     Psi = NITE_POSE_PSI,
@@ -159,6 +162,7 @@ impl PoseType {
     }
 }
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[repr(i32)]
 pub enum GestureType {
     Wave = NITE_GESTURE_WAVE,

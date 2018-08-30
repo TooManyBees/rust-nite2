@@ -1,7 +1,8 @@
-use std::os::raw::c_ulonglong;
+use std::os::raw::{c_ulonglong, c_int, c_void};
 use std::marker::PhantomData;
-use std::{ptr, slice};
-use types::Status;
+use std::{mem, ptr, slice};
+use skeleton::Skeleton;
+use types::{Status, SkeletonState};
 use openni2::{
     Frame,
     OniDepthPixel,
@@ -40,16 +41,59 @@ impl<'a> UserTracker<'a> {
         }
     }
 
-    // niteStartSkeletonTracking
-    // niteStopSkeletonTracking
-    // niteIsSkeletonTracking
+    pub fn track_skeleton(&self, user: NiteUserId, setting: bool) -> Result<(), Status> {
+        if setting {
+            let status = unsafe { niteStartSkeletonTracking(self.handle, user) }.into();
+            if let Status::Ok = status {
+                Ok(())
+            } else {
+                Err(status)
+            }
+        } else {
+            unsafe { niteStopSkeletonTracking(self.handle, user); }
+            Ok(())
+        }
+    }
+
+    pub fn tracking_skeleton(&self, user: NiteUserId) -> bool {
+        unsafe { niteIsSkeletonTracking(self.handle, user) }
+    }
+
     // niteSetSkeletonSmoothing
     // niteGetSkeletonSmoothing
     // niteStartPoseDetection
     // niteStopPoseDetection
     // niteStopAllPoseDetection
-    // niteRegisterUserTrackerCallbacks
-    // niteUnregisterUserTrackerCallbacks
+
+    pub fn register_next_frame_callback<F: FnMut(&UserTracker)>(&self, mut callback: F) -> Result<UserTrackerListener, Status> {
+        extern "C" fn callback_wrapper(cookie: *mut c_void) {
+            let closure: &mut Box<Fn()> = unsafe { mem::transmute(cookie) };
+            closure();
+        }
+
+        let closure: Box<Box<FnMut()>> = Box::new(Box::new(move || {
+            callback(&self);
+        }));
+
+        let mut callback_struct = NiteUserTrackerCallbacks {
+            readyForNextFrame: Some(callback_wrapper),
+        };
+        let status = unsafe {
+            niteRegisterUserTrackerCallbacks(
+                self.handle,
+                &mut callback_struct,
+                Box::into_raw(closure) as *mut _,
+            )
+        }.into();
+        if let Status::Ok = status {
+            Ok(UserTrackerListener {
+                user_tracker_handle: &self.handle,
+                callback_struct,
+            })
+        } else {
+            Err(status)
+        }
+    }
 }
 
 impl<'a> Drop for UserTracker<'a> {
@@ -111,13 +155,18 @@ impl<'a> UserTrackerFrame<'a> {
         }
     }
 
-    pub fn users(&self) -> &'a [NiteUserData] {
-        assert!(!self.nite_frame.pUser.is_null(), "Creating NiteUserData slice: NiteUserTrackerFrame.pUser is null");
-        unsafe {
-            slice::from_raw_parts(self.nite_frame.pUser, self.user_count())
+    pub fn users(&self) -> Vec<UserData> {
+        if self.nite_frame.userCount == 0 {
+            vec![]
+        } else {
+            assert!(!self.nite_frame.pUser.is_null(), "Creating NiteUserData slice: NiteUserTrackerFrame.pUser is null");
+            unsafe { slice::from_raw_parts(self.nite_frame.pUser, self.user_count()) }.into_iter().map(|&user_data| {
+                UserData(user_data)
+            }).collect()
         }
     }
 
+    #[inline]
     pub fn user_count(&self) -> usize {
         self.nite_frame.userCount as usize
     }
@@ -136,4 +185,37 @@ pub struct UserMap<'a> {
     pub width: usize,
     pub height: usize,
     pub stride: usize,
+}
+
+pub struct UserTrackerListener<'tracker> {
+    user_tracker_handle: &'tracker NiteUserTrackerHandle,
+    callback_struct: NiteUserTrackerCallbacks,
+}
+
+impl<'tracker> Drop for UserTrackerListener<'tracker> {
+    fn drop(&mut self) {
+        unsafe {
+            niteUnregisterUserTrackerCallbacks(*self.user_tracker_handle, &mut self.callback_struct);
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct UserData(NiteUserData);
+
+impl UserData {
+    pub fn id(&self) -> NiteUserId {
+        self.0.id
+    }
+
+    pub fn state(&self) -> c_int {
+        self.0.state
+    }
+
+    pub fn skeleton(&self) -> Result<Skeleton, SkeletonState> {
+        match self.0.skeleton.state.into() {
+            SkeletonState::Tracked => Ok(Skeleton(self.0.skeleton)),
+            state => Err(state),
+        }
+    }
 }

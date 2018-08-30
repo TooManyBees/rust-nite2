@@ -5,7 +5,9 @@ authors = ["Jesse Bees <jesse@toomanybees.com>"]
 
 [dependencies]
 nite2-sys = "0.2"
-openni2 = { path = "../openni2" }
+openni2 = "0.3"
 
 [dev-dependencies]
-minifb = "0.10"
+# minifb = "0.10"
+piston_window = "0.80"
+image = "0.19"
