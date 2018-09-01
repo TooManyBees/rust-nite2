@@ -7,10 +7,11 @@ use std::{mem};
 use piston_window::*;
 use image::{ImageBuffer};
 use openni2::OniDepthPixel;
-use nite2::{Status, UserTrackerManager};
+use nite2::{Status, UserTrackerManager, DepthPoint};
 
 const WIDTH: usize = 320;
 const HEIGHT: usize = 240;
+const WHITE: [f32; 4] = [1., 1., 1., 1.];
 
 fn depth_histogram(hist: &mut [f32], pixels: &[OniDepthPixel]) {
     let mut count = 0usize;
@@ -30,17 +31,32 @@ fn depth_histogram(hist: &mut [f32], pixels: &[OniDepthPixel]) {
     }
     if count > 0 {
         for px in hist.iter_mut().skip(1) {
-            *px = 256f32 * (1.0f32 - (*px / count as f32));
+            *px = 1.0f32 - (*px / count as f32);
         }
     }
 }
 
-// struct UserViewer {
-//     users: Vec<User>,
-
-// }
+struct Viewer {
+    draw_skeleton: bool,
+    draw_center_of_mass: bool,
+    draw_status_label: bool,
+    draw_bounding_box: bool,
+    draw_background: bool,
+    draw_depth: bool,
+    draw_frame_id: bool,
+}
 
 fn main() -> Result<(), Status> {
+    let mut viewer = Viewer {
+        draw_skeleton: true,
+        draw_center_of_mass: true,
+        draw_status_label: true,
+        draw_bounding_box: true,
+        draw_background: true,
+        draw_depth: true,
+        draw_frame_id: true,
+    };
+
     let opengl = OpenGL::V3_2;
     let mut window: PistonWindow = WindowSettings::new("NiTE2 Sample User Viewer", [WIDTH as u32, HEIGHT as u32])
         .opengl(opengl)
@@ -48,6 +64,7 @@ fn main() -> Result<(), Status> {
         .build()
         .unwrap();
 
+    let mut glyphs = Glyphs::new("cour.ttf", window.factory.clone(), TextureSettings::new()).expect("font failed");
     let mut canvas = ImageBuffer::new(WIDTH as u32, HEIGHT as u32);
     let mut texture = Texture::from_image(
         &mut window.factory,
@@ -62,43 +79,36 @@ fn main() -> Result<(), Status> {
 
     let mut tracker = UserTrackerManager::create()?;
 
-    let user_colors: [[u8; 4]; 6] = [
-        [0xFF, 0x00, 0x00, 0xFF],
-        [0x00, 0xFF, 0x00, 0xFF],
-        [0x00, 0x00, 0xFF, 0xFF],
-        [0xFF, 0xFF, 0x00, 0xFF],
-        [0xFF, 0x00, 0xFF, 0xFF],
-        [0x00, 0xFF, 0xFF, 0xFF],
+    let user_colors: [[f32; 3]; 6] = [
+        [1., 0., 0.],
+        [0., 1., 0.],
+        [0., 0., 1.],
+        [1., 1., 0.],
+        [1., 0., 1.],
+        [0., 1., 1.],
     ];
     let mut histogram: [f32; 10000] = unsafe { mem::zeroed() };
 
     while let Some(e) = window.next() {
+        if let Some(Button::Keyboard(key)) = e.press_args() {
+            match key {
+                Key::S => viewer.draw_skeleton = !viewer.draw_skeleton,
+                Key::L => viewer.draw_status_label = !viewer.draw_status_label,
+                Key::C => viewer.draw_center_of_mass = !viewer.draw_center_of_mass,
+                Key::X => viewer.draw_bounding_box = !viewer.draw_bounding_box,
+                Key::B => viewer.draw_background = !viewer.draw_background,
+                Key::D => viewer.draw_depth = !viewer.draw_depth,
+                Key::F => viewer.draw_frame_id = !viewer.draw_frame_id,
+                _ => {},
+            }
+        }
         if let Some(_) = e.render_args() {
             let user_frame = tracker.read_frame().expect("Couldn't read user tracker frame");
 
-            let skeletons = user_frame.users()
-                .into_iter()
-                .filter_map(|user| user.skeleton().ok().map(|mut skeleton| {
-                    for mut joint in skeleton.joints_mut().iter_mut() {
-                        let (x, y, z) = depth_stream.world_to_depth((joint.position.x, joint.position.y,  joint.position.z)).expect("Couldn't translate depth to world coordinates!");
-                        joint.position.x = x;
-                        joint.position.y = y;
-                        joint.position.z = z;
-                    }
-                    skeleton 
-                }));
-                // .fold(Vec::with_capacity(user_frame.user_count()), |mut acc, user| {
-                //     if let Ok(mut skeleton) = user.skeleton() {
-                //         for mut joint in skeleton.joints_mut().iter_mut() {
-                //             let (x, y, z) = depth_stream.world_to_depth((joint.position.x, joint.position.y,  joint.position.z)).expect("Couldn't translate depth to world coordinates!");
-                //             joint.position.x = x;
-                //             joint.position.y = y;
-                //             joint.position.z = z;
-                //         }
-                //         acc.push(skeleton);
-                //     }
-                //     acc
-                // });
+            let users = user_frame.users();
+
+            let skeletons = users.iter()
+                .filter_map(|user| user.skeleton().ok()?.into_depth(&depth_stream).ok());
 
             let depth_frame = user_frame.depth_frame();
             let depth_pixels = depth_frame.pixels();
@@ -106,23 +116,59 @@ fn main() -> Result<(), Status> {
             let user_map = user_frame.user_map();
             assert_eq!(user_map.width, WIDTH);
             assert_eq!(user_map.height, HEIGHT);
+
             for ((&user, &depth), mut canvas_px) in user_map.pixels.iter().zip(depth_pixels).zip(canvas.pixels_mut()) {
                 if user == 0 {
-                    let color = histogram[depth as usize] as u8;
-                    canvas_px.data = [color, color, color, 0xFF];
+                    if viewer.draw_background {
+                        let color = (histogram[depth as usize] * 256f32) as u8;
+                        canvas_px.data = [color, color, color, 0xFF];
+                    } else {
+                        canvas_px.data = [0, 0, 0, 0xFF];
+                    };
                 } else {
-                    let color = user_colors[(user as usize - 1) % user_colors.len()];
-                    canvas_px.data = color;
+                    let user_color = user_colors[(user as usize - 1) % user_colors.len()];
+                    let multiplier = if viewer.draw_background { histogram[depth as usize] } else { 1. };
+                    canvas_px.data = [
+                        (user_color[0] * multiplier * 255.) as u8,
+                        (user_color[1] * multiplier * 255.) as u8,
+                        (user_color[2] * multiplier * 255.) as u8,
+                        0xFF,
+                    ];
                 }
             }
 
             texture.update(&mut window.encoder, &canvas).unwrap();
             window.draw_2d(&e, |c, g| {
                 image(&texture, c.transform, g);
-                for skeleton in skeletons {
-                    for (j1, j2) in skeleton.limbs().into_iter() {
-                        line([1.0, 1.0, 1.0, 1.0], 1.0, [j1.position.x as f64, j1.position.y as f64, j2.position.x as f64, j2.position.y as f64], c.transform, g);
+
+                if viewer.draw_skeleton {
+                    for skeleton in skeletons {
+                        for (j1, j2) in skeleton.limbs().into_iter() {
+                            line(WHITE, 1.0, [j1.position.x as f64, j1.position.y as f64, j2.position.x as f64, j2.position.y as f64], c.transform, g);
+                        }
                     }
+                }
+                for user in &users {
+                    if viewer.draw_center_of_mass {
+                        if let Ok(DepthPoint { x, y, .. }) = user.center_of_mass().into_depth(&depth_stream) {
+                            ellipse(WHITE, [x as f64 - 4., y as f64 - 4., 8., 8.], c.transform, g);
+                        }
+                    }
+                    if viewer.draw_bounding_box {
+                        let (DepthPoint { x: xmin, y: ymin, .. }, DepthPoint { x: xmax, y: ymax, .. }) = user.bounding_box();
+                        line(WHITE, 1.0, [xmin as f64, ymin as f64, xmax as f64, ymin as f64], c.transform, g);
+                        line(WHITE, 1.0, [xmin as f64, ymax as f64, xmax as f64, ymax as f64], c.transform, g);
+                        line(WHITE, 1.0, [xmin as f64, ymin as f64, xmin as f64, ymax as f64], c.transform, g);
+                        line(WHITE, 1.0, [xmax as f64, ymin as f64, xmax as f64, ymax as f64], c.transform, g);
+                    }
+                    if viewer.draw_status_label {
+                        // text(WHITE, 16, "string", &mut glyphs, c.transform.trans(0.0, 0.0), g);
+                        // gotta keep track of user state in user manager (new, lost, calibrated, tracking, etc.)
+                    }
+                }
+
+                if viewer.draw_frame_id {
+                    let _ = text(WHITE, 14, &format!("{}", user_frame.frame_index()), &mut glyphs, c.transform.trans(20., 20.), g);
                 }
             });
         }

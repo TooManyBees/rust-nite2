@@ -1,5 +1,6 @@
-use nite2_sys::{NiteSkeleton, NiteSkeletonJoint};
-use types::{JointType};
+use openni2::Stream;
+use nite2_sys::{NiteSkeleton, NiteSkeletonJoint, NiteQuaternion};
+use types::{JointType, Status};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Skeleton(pub(crate) NiteSkeleton);
@@ -55,10 +56,31 @@ impl Skeleton {
         }).collect()
     }
 
-    // TODO: gtfo of here, joints_mut....
-    // the only reason this exists is to change position from world to depth;
-    // we need a method on joint to do this instead
-    pub fn joints_mut(&mut self) -> &mut [NiteSkeletonJoint] {
-        &mut self.0.joints
+    pub fn into_depth(self, depth_stream: &Stream) -> Result<Skeleton, Status> {
+        let mut joints = self.0.joints;
+        for mut joint in joints.iter_mut() {
+            let (x, y, z) = depth_stream.world_to_depth((joint.position.x, joint.position.y, joint.position.z))?;
+            joint.position.x = x;
+            joint.position.y = y;
+            joint.position.z = z;
+        }
+        Ok(Skeleton(NiteSkeleton {
+            joints,
+            ..self.0
+        }))
+    }
+
+    pub fn into_world(self, depth_stream: &Stream) -> Result<Skeleton, Status> {
+        let mut joints = self.0.joints;
+        for mut joint in joints.iter_mut() {
+            let (x, y, z) = depth_stream.depth_to_world((joint.position.x, joint.position.y, joint.position.z))?;
+            joint.position.x = x;
+            joint.position.y = y;
+            joint.position.z = z;
+        }
+        Ok(Skeleton(NiteSkeleton {
+            joints,
+            ..self.0
+        }))
     }
 }

@@ -1,6 +1,6 @@
 use std::fmt;
 use nite2_sys::*;
-use openni2::Status as OpenNI2Status;
+use openni2::{Stream, Status as OpenNI2Status};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Status {
@@ -184,5 +184,45 @@ impl GestureType {
 impl From<NiteGestureType> for GestureType {
     fn from(i: NiteGestureType) -> GestureType {
         GestureType::from_int(i)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct WorldPoint {
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
+}
+
+impl WorldPoint {
+    pub fn into_depth(self, stream: &Stream) -> Result<DepthPoint, Status> {
+        let (x, y, z) = stream.world_to_depth((self.x, self.y, self.z))?;
+        Ok(DepthPoint { x, y, z })
+    }
+}
+
+impl Into<WorldPoint> for NitePoint3f {
+    fn into(self) -> WorldPoint {
+        WorldPoint { x: self.x, y: self.y, z: self.z }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct DepthPoint {
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
+}
+
+impl DepthPoint {
+    pub fn into_world(self, stream: &Stream) -> Result<WorldPoint, Status> {
+        let (x, y, z) = stream.depth_to_world((self.x, self.y, self.z))?;
+        Ok(WorldPoint { x, y, z })
+    }
+}
+
+impl Into<DepthPoint> for NitePoint3f {
+    fn into(self) -> DepthPoint {
+        DepthPoint { x: self.x, y: self.y, z: self.z }
     }
 }

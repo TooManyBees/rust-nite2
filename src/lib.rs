@@ -22,6 +22,9 @@ pub use types::{
     SkeletonState,
     PoseType,
     GestureType,
+
+    DepthPoint,
+    WorldPoint,
 };
 
 pub use user_tracker::{

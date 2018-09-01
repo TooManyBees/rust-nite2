@@ -48,7 +48,7 @@ impl<'a> UserTrackerManager<'a> {
         Ok(frame)
     }
 
-    pub fn users(&self) -> &[UserData] {
-        &self.users
+    pub fn seen_user_ids(&self) -> &[NiteUserId] {
+        &self.seen_user_ids
     }
 }

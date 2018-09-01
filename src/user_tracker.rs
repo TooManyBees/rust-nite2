@@ -2,7 +2,7 @@ use std::os::raw::{c_ulonglong, c_int, c_void};
 use std::marker::PhantomData;
 use std::{mem, ptr, slice};
 use skeleton::Skeleton;
-use types::{Status, SkeletonState};
+use types::{Status, SkeletonState, WorldPoint, DepthPoint};
 use openni2::{
     Frame,
     OniDepthPixel,
@@ -208,6 +208,7 @@ impl UserData {
         self.0.id
     }
 
+    // TODO: used?
     pub fn state(&self) -> c_int {
         self.0.state
     }
@@ -218,4 +219,14 @@ impl UserData {
             state => Err(state),
         }
     }
+
+    pub fn center_of_mass(&self) -> WorldPoint {
+        self.0.centerOfMass.into()
+    }
+
+    pub fn bounding_box(&self) -> (DepthPoint, DepthPoint) {
+        (self.0.boundingBox.min.into(), self.0.boundingBox.max.into())
+    }
+
+    // pub fn poses
 }
