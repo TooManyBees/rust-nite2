@@ -1,6 +1,6 @@
 use std::os::raw::{c_ulonglong, c_int, c_void};
 use std::marker::PhantomData;
-use std::{mem, ptr, slice};
+use std::{ptr, slice};
 use skeleton::Skeleton;
 use types::{Status, SkeletonState, WorldPoint, DepthPoint};
 use openni2::{

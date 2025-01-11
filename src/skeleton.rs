@@ -1,5 +1,5 @@
 use openni2::Stream;
-use nite2_sys::{NiteSkeleton, NiteSkeletonJoint, NiteQuaternion};
+use nite2_sys::{NiteSkeleton, NiteSkeletonJoint, /* NiteQuaternion */};
 use types::{JointType, Status};
 
 #[derive(Clone, Copy, Debug)]
@@ -47,7 +47,7 @@ impl Skeleton {
             (left_knee, left_foot),
             (right_hip, right_knee),
             (right_knee, right_foot),
-        ].into_iter().filter_map(|&joints| {
+        ].iter().filter_map(|&joints| {
             if joints.0.positionConfidence >= 1.0 && joints.1.positionConfidence >= 1.0 {
                 Some(joints)
             } else {
@@ -58,7 +58,7 @@ impl Skeleton {
 
     pub fn into_depth(self, depth_stream: &Stream) -> Result<Skeleton, Status> {
         let mut joints = self.0.joints;
-        for mut joint in joints.iter_mut() {
+        for joint in joints.iter_mut() {
             let (x, y, z) = depth_stream.world_to_depth((joint.position.x, joint.position.y, joint.position.z))?;
             joint.position.x = x;
             joint.position.y = y;
@@ -72,7 +72,7 @@ impl Skeleton {
 
     pub fn into_world(self, depth_stream: &Stream) -> Result<Skeleton, Status> {
         let mut joints = self.0.joints;
-        for mut joint in joints.iter_mut() {
+        for joint in joints.iter_mut() {
             let (x, y, z) = depth_stream.depth_to_world((joint.position.x, joint.position.y, joint.position.z))?;
             joint.position.x = x;
             joint.position.y = y;
