@@ -3,7 +3,6 @@ extern crate nite2;
 extern crate piston_window;
 extern crate image;
 
-use std::{mem};
 use piston_window::*;
 use image::{ImageBuffer};
 use openni2::OniDepthPixel;
@@ -15,9 +14,7 @@ const WHITE: [f32; 4] = [1., 1., 1., 1.];
 
 fn depth_histogram(hist: &mut [f32], pixels: &[OniDepthPixel]) {
     let mut count = 0usize;
-    for h in hist.iter_mut() {
-        *h = 0f32;
-    }
+    hist.fill(0f32);
 
     for px in pixels {
         if *px != 0 {
@@ -64,7 +61,7 @@ fn main() -> Result<(), Status> {
         .build()
         .unwrap();
 
-    let mut glyphs = Glyphs::new("cour.ttf", window.factory.clone(), TextureSettings::new()).expect("font failed");
+    // let mut glyphs = Glyphs::new("cour.ttf", window.factory.clone(), TextureSettings::new()).expect("font failed");
     let mut canvas = ImageBuffer::new(WIDTH as u32, HEIGHT as u32);
     let mut texture = Texture::from_image(
         &mut window.factory,
@@ -87,7 +84,7 @@ fn main() -> Result<(), Status> {
         [1., 0., 1.],
         [0., 1., 1.],
     ];
-    let mut histogram: [f32; 10000] = unsafe { mem::zeroed() };
+    let mut histogram = vec![0f32; 10000].into_boxed_slice();
 
     while let Some(e) = window.next() {
         if let Some(Button::Keyboard(key)) = e.press_args() {
@@ -117,7 +114,7 @@ fn main() -> Result<(), Status> {
             assert_eq!(user_map.width, WIDTH);
             assert_eq!(user_map.height, HEIGHT);
 
-            for ((&user, &depth), mut canvas_px) in user_map.pixels.iter().zip(depth_pixels).zip(canvas.pixels_mut()) {
+            for ((&user, &depth), canvas_px) in user_map.pixels.iter().zip(depth_pixels).zip(canvas.pixels_mut()) {
                 if user == 0 {
                     if viewer.draw_background {
                         let color = (histogram[depth as usize] * 256f32) as u8;
@@ -168,7 +165,7 @@ fn main() -> Result<(), Status> {
                 }
 
                 if viewer.draw_frame_id {
-                    let _ = text(WHITE, 14, &format!("{}", user_frame.frame_index()), &mut glyphs, c.transform.trans(20., 20.), g);
+                    // let _ = text(WHITE, 14, &format!("{}", user_frame.frame_index()), &mut glyphs, c.transform.trans(20., 20.), g);
                 }
             });
         }
