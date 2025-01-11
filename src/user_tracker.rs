@@ -67,11 +67,11 @@ impl<'a> UserTracker<'a> {
 
     pub fn register_next_frame_callback<F: FnMut(&UserTracker)>(&self, mut callback: F) -> Result<UserTrackerListener, Status> {
         extern "C" fn callback_wrapper(cookie: *mut c_void) {
-            let closure: &mut Box<Fn()> = unsafe { mem::transmute(cookie) };
+            let closure: &mut dyn FnMut() = unsafe { &mut *(cookie as *mut Box<dyn FnMut()>) };
             closure();
         }
 
-        let closure: Box<Box<FnMut()>> = Box::new(Box::new(move || {
+        let closure: Box<Box<dyn FnMut()>> = Box::new(Box::new(move || {
             callback(&self);
         }));
 

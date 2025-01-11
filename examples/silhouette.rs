@@ -2,15 +2,13 @@ extern crate minifb;
 extern crate openni2;
 extern crate nite2;
 use minifb::{ Window, Key, WindowOptions, Scale };
-use std::{mem, process};
+use std::process;
 use openni2::OniDepthPixel;
 use nite2::{Status, UserTracker};
 
 pub fn depth_histogram(hist: &mut [f32], pixels: &[OniDepthPixel]) {
     let mut count = 0usize;
-    for h in hist.iter_mut() {
-        *h = 0f32;
-    }
+    hist.fill(0f32);
 
     for px in pixels {
         if *px != 0 {
@@ -52,8 +50,8 @@ fn main() -> Result<(), Status> {
         0xFF00FF,
         0x00FFFF,
     ];
-    let mut buffer: [u32; 320 * 240] = unsafe { mem::zeroed() };
-    let mut histogram: [f32; 10000] = unsafe { mem::zeroed() };
+    let mut histogram = vec![0f32; 10000].into_boxed_slice();
+    let mut buffer = vec![0u32; 320 * 240].into_boxed_slice();
     while window.is_open() && !window.is_key_down(Key::Escape) {
         let user_frame = tracker.read_frame().expect("Couldn't read user tracker frame");
         let depth_frame = user_frame.depth_frame();
@@ -64,7 +62,8 @@ fn main() -> Result<(), Status> {
         assert_eq!(user_map.height, 240);
         for (i, (&user, &depth)) in user_map.pixels.iter().zip(depth_pixels).enumerate() {
             if user == 0 {
-                buffer[i] = histogram[depth as usize] as u32;
+                let brightness = histogram[depth as usize] as u32;
+                buffer[i] = brightness << 16 | brightness << 8 | brightness;
             } else {
                 buffer[i] = user_colors[user as usize % user_colors.len()];
             }
