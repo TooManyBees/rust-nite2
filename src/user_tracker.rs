@@ -143,7 +143,7 @@ impl<'a> UserTrackerFrame<'a> {
 
     pub fn user_map(&self) -> UserMap {
         let pixels = self.nite_frame.userMap.pixels;
-        assert!(!pixels.is_null() "Creating UserMap: NiteUserMap.pixels is null");
+        assert!(!pixels.is_null(), "Creating UserMap: NiteUserMap.pixels is null");
         let width = self.nite_frame.userMap.width as usize;
         let height = self.nite_frame.userMap.height as usize;
         let stride = self.nite_frame.userMap.stride as usize;
