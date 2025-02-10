@@ -112,7 +112,6 @@ pub struct UserTrackerFrame<'a> {
 fn frame_from_pointer<'a>(frame_pointer: *mut NiteUserTrackerFrame, handle: NiteUserTrackerHandle) -> UserTrackerFrame<'a> {
     assert!(!frame_pointer.is_null(), "Creating UserTrackerFrame: *mut NiteUserTrackerFrame is null");
     let nite_frame: &NiteUserTrackerFrame = unsafe { &*frame_pointer };
-    unsafe { niteUserTrackerFrameAddRef(handle, frame_pointer) };
     UserTrackerFrame {
         nite_frame,
         frame_pointer,
